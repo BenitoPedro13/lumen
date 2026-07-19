@@ -20,7 +20,11 @@ export type Category = (typeof CATEGORIES)[number];
 // whatever language the dictated `text` was in (§6.0) — the prompt must instruct this
 // explicitly, don't assume English or Dutch.
 export const ExtractionSchema = z.object({
-  occurred_at: z.string().datetime(),
+  // { offset: true } is required — Zod's datetime() rejects timezone-offset
+  // strings (e.g. "+02:00") by default, only accepting UTC "Z". We want the
+  // model to return her local-offset time (Europe/Amsterdam), not force a
+  // UTC conversion, so the plain UTC-only default would reject valid output.
+  occurred_at: z.string().datetime({ offset: true }),
   category: z.enum(CATEGORIES),
   summary: z.string(),
   data: z.record(z.any()),
@@ -33,8 +37,8 @@ export type Extraction = z.infer<typeof ExtractionSchema>;
 // See docs/architecture/overview.md §6.2.
 export const QueryScopeSchema = z.object({
   category: z.enum(CATEGORIES).nullable(),
-  from: z.string().datetime().nullable(),
-  to: z.string().datetime().nullable(),
+  from: z.string().datetime({ offset: true }).nullable(),
+  to: z.string().datetime({ offset: true }).nullable(),
 });
 
 export type QueryScope = z.infer<typeof QueryScopeSchema>;

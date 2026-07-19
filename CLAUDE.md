@@ -5,11 +5,11 @@ Siri; Siri talks to Lumen; Lumen remembers things and answers questions about
 them — no app, no typing, no visible tech. Built as a pnpm/Turborepo monorepo
 deployed to Vercel.
 
-> **Status: Phase 0 (skeleton) not started.** Monorepo scaffolded, docs
-> written, all open decisions resolved (`docs/architecture/overview.md` §10 —
-> name Lumen, `Europe/Amsterdam`, ntfy.sh, starting categories as-is, Sunday
-> 18:00 UTC recap). Next: provision Neon, then build `/log` and `/ask` in
-> `apps/api`.
+> **Status: Phase 0 (skeleton) built, not yet smoke-tested end-to-end.**
+> Monorepo scaffolded, decisions resolved (`docs/architecture/overview.md`
+> §10), Neon provisioned and migrated, `/health`, `/log`, `/ask` implemented
+> in `apps/api` (Next.js App Router route handlers). Next: run `pnpm
+> --filter @lumen/api dev` and verify against the real Anthropic API + Neon.
 
 ---
 
@@ -41,11 +41,7 @@ pnpm --filter @lumen/db db:migrate
 ### Run in development
 
 ```bash
-# API only
-pnpm --filter @lumen/api dev
-
-# Everything via Turborepo
-pnpm dev
+pnpm --filter @lumen/api dev   # next dev
 ```
 
 ### Tests, lint, build
@@ -62,7 +58,7 @@ pnpm build         # Full production build
 
 ```
 apps/
-  api/        Hono app on Vercel Functions — /log /ask /recap/run /health
+  api/        Next.js App Router, route handlers only (no pages) — /log /ask /recap/run /health
 packages/
   core/       @lumen/core — Zod schemas (extraction, query-scope, answer) + category taxonomy, zero framework deps
   db/         @lumen/db — Drizzle schema for `entries`, migrations, Neon client factory
@@ -94,6 +90,13 @@ private admin dashboard is a Phase 4 maybe, not a Phase 0 default.
   network — and a broken voice interaction reads to her as "this doesn't
   work," not "the server's down." Always-on managed hosting removes that
   failure class entirely. See `docs/architecture/overview.md` §3.
+- **Next.js App Router (route handlers only), not a bare Hono function.**
+  Started as a framework-less Hono app in a single Vercel Function — leaner on
+  paper, but its local `vercel dev` emulation proved unreliable (requests hung
+  indefinitely, reproduced even with a trivial zero-dependency handler).
+  `next dev` is Vercel's most battle-tested local path. No pages exist —
+  `next`/`react`/`react-dom` are dependencies only because the framework
+  requires them. See §4.1.
 - **No vector DB / embeddings for v1.** At personal-journal scale, a SQL date +
   category filter comfortably outperforms the complexity of semantic search.
   Revisit only if `/ask` starts needing fuzzy recall over months of history.

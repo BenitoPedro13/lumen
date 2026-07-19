@@ -82,7 +82,7 @@ flowchart LR
     end
 
     subgraph Vercel["apps/api on Vercel (Fluid Compute)"]
-        API["Hono routes\n/log /ask /recap/run /health"]
+        API["Next.js App Router route handlers\n/log /ask /recap/run /health"]
     end
 
     ANTH["Anthropic API\n(claude-sonnet-5 / claude-haiku-4-5)"]
@@ -117,7 +117,7 @@ actually talks to.
 
 | Component | Package | Notes |
 |---|---|---|
-| API routes | `apps/api` | Hono app deployed as Vercel Functions (Fluid Compute, Node runtime). No Edge needed — the LLM call dominates latency, not routing. |
+| API routes | `apps/api` | Next.js App Router, route handlers only (`app/api/*/route.ts`) — no pages, no UI. Deployed as Vercel Functions (Fluid Compute, Node runtime). No Edge needed — the LLM call dominates latency, not routing. |
 | Prompts, Zod schemas, category taxonomy | `packages/core` | Framework-free — importable by `apps/api` today, by a future `apps/web` admin view without duplication. |
 | DB schema + client | `packages/db` | Drizzle ORM over the Neon serverless driver; schema, migrations, and a `createDb()` factory live here, not in `apps/api`. |
 | Shared tsconfig/lint | `packages/config` | One base config every package/app extends. |
@@ -125,6 +125,15 @@ actually talks to.
 
 ### 4.1 API layer
 
+- **Next.js App Router, not a bare Hono function.** The original plan used a single Hono
+  app in a framework-less `api/index.ts` Vercel Function (leaner in principle, since v1 has
+  no UI). In practice, bare `/api`-only Vercel Functions get far less real-world exercise
+  locally than Next.js projects do — `vercel dev`'s zero-config Functions dev server proved
+  unreliable in testing (requests to matched routes hung indefinitely, reproducible even
+  with a trivial zero-dependency handler), whereas `next dev` is Vercel's most battle-tested
+  local dev path. Each endpoint is a plain `route.ts` file (`app/api/log/route.ts`, etc.) —
+  no pages, no React rendering, `next`/`react`/`react-dom` are dependencies only because the
+  framework requires them, not because there's any UI.
 - Auth: every request from a Shortcut carries a static bearer token in the `Authorization`
   header, provisioned as a Vercel env var and hardcoded into the two Shortcuts (Shortcuts
   supports setting request headers in "Get Contents of URL"). This is a 2-person private
