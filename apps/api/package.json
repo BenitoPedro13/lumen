@@ -1,0 +1,21 @@
+{
+  "name": "@lumen/api",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@lumen/core": "workspace:*",
+    "@lumen/db": "workspace:*",
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "@lumen/config": "workspace:*",
+    "@vercel/node": "^5.0.0",
+    "typescript": "^5.7.0",
+    "vercel": "^56.3.2"
+  }
+}
