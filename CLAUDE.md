@@ -20,6 +20,8 @@ deployed to Vercel.
 - Node ≥ 22 and pnpm ≥ 11 (`npm i -g pnpm`)
 - A Neon Postgres project, provisioned via `vercel integration add neon` — see
   `docs/architecture/overview.md` §4.3
+- An Anthropic API key from console.anthropic.com — **not** a Claude.ai Pro/Max
+  subscription, which doesn't grant API credits
 
 ### Setup
 
@@ -27,7 +29,8 @@ deployed to Vercel.
 # 1. Install all workspace deps
 pnpm install
 
-# 2. Copy env file and fill in your Neon connection string + a bearer token
+# 2. Copy env file and fill in your Neon connection string, a bearer token,
+#    and your ANTHROPIC_API_KEY
 cp apps/api/.env.example apps/api/.env
 
 # 3. Generate and run the Drizzle migration
@@ -105,6 +108,10 @@ private admin dashboard is a Phase 4 maybe, not a Phase 0 default.
 - **Extraction uses Haiku, answering uses Sonnet.** Extraction is cheap and
   low-ambiguity; answering needs real reasoning over retrieved entries. Don't
   collapse these into one model tier. See §6.
+- **Anthropic is called directly via `@ai-sdk/anthropic`, not the Vercel AI
+  Gateway.** Keeps LLM billing entirely on your own Anthropic account instead
+  of routing spend through Vercel. Model IDs: `claude-sonnet-5`,
+  `claude-haiku-4-5`. See §4.2.
 - **Multilingual by prompt instruction, not by separate pipeline.** She speaks
   Dutch; Claude handles that natively. Every prompt detects the input's
   language and replies in kind — don't hardcode Dutch or English anywhere.

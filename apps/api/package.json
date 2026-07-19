@@ -8,12 +8,15 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.16",
     "@lumen/core": "workspace:*",
     "@lumen/db": "workspace:*",
+    "ai": "^7.0.31",
     "hono": "^4.6.0"
   },
   "devDependencies": {
     "@lumen/config": "workspace:*",
+    "@types/node": "^26.1.1",
     "@vercel/node": "^5.0.0",
     "typescript": "^5.7.0",
     "vercel": "^56.3.2"

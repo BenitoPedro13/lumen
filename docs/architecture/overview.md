@@ -83,16 +83,16 @@ flowchart LR
 
     subgraph Vercel["apps/api on Vercel (Fluid Compute)"]
         API["Hono routes\n/log /ask /recap/run /health"]
-        GW["AI Gateway\n(anthropic/claude-*)"]
     end
 
+    ANTH["Anthropic API\n(claude-sonnet-5 / claude-haiku-4-5)"]
     DB[("Postgres (Neon,\nvia Vercel Marketplace)")]
     CRON["Vercel Cron\n(weekly trigger)"]
     PUSH["ntfy.sh / Pushcut\n(push delivery)"]
 
     S1 -- "POST /log" --> API
     S2 -- "POST /ask" --> API
-    API <--> GW
+    API <--> ANTH
     API <--> DB
     CRON -- "POST /recap/run" --> API
     API --> PUSH
@@ -132,8 +132,13 @@ actually talks to.
 
 ### 4.2 LLM layer
 
-- Access Claude through **Vercel AI Gateway** using the AI SDK, model string
-  `anthropic/claude-sonnet-5` (or Haiku for the cheap/fast extraction path — see §6).
+- Access Claude **directly** via `@ai-sdk/anthropic` (AI SDK's Anthropic provider,
+  not the Vercel AI Gateway) — calls go straight to `api.anthropic.com`, billed to
+  your own Anthropic account, with no Vercel spend in the loop. Requires
+  `ANTHROPIC_API_KEY` from console.anthropic.com — a Claude.ai Pro/Max chat
+  subscription does **not** grant API credits, those are billed separately.
+  Model IDs: `claude-sonnet-5` and `claude-haiku-4-5` (or Haiku for the
+  cheap/fast extraction path — see §6).
 - Two distinct LLM responsibilities, kept as separate prompts/tools rather than one
   do-everything call:
   1. **Extraction** (`/log`): freeform sentence → structured record.
@@ -286,8 +291,9 @@ error server-side (Vercel's log drain is enough at this scale) for you to debug 
 - Single shared bearer token, rotated by you if it ever leaks (Shortcuts stores the header
   value in the shortcut definition — treat it like a password, don't screenshot/share it).
 - HTTPS is automatic (Vercel default).
-- No third-party data sharing beyond Anthropic (via AI Gateway) for the LLM calls — everything
-  she says passes through your API and their model, nowhere else.
+- No third-party data sharing beyond Anthropic (called directly, no Gateway in between)
+  for the LLM calls — everything she says passes through your API and their model,
+  nowhere else.
 - Backups: Neon has point-in-time recovery on by default; no extra work needed, but worth
   confirming the plan tier before you rely on it.
 - This is emotionally sensitive data (moods, spending, personal notes) — treat the DB and
