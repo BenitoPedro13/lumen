@@ -85,6 +85,13 @@ private admin dashboard is a Phase 4 maybe, not a Phase 0 default.
 
 ---
 
+## Working with this repo
+
+- **Do not add a `Co-Authored-By` trailer to git commits.** Commit messages
+  should just be the summary/body — no AI co-author line.
+
+---
+
 ## Design decisions worth knowing before touching code
 
 - **Vercel + Neon, not "run it on my Mac."** A Mac/Tailscale setup was the
