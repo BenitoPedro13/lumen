@@ -1,4 +1,4 @@
-import { and, desc, entries, eq, gte, lte } from "@lumen/db";
+import { and, desc, entries, gte, lte } from "@lumen/db";
 import { z } from "zod";
 
 import { isAuthorized } from "@/lib/auth";
@@ -21,7 +21,6 @@ export async function POST(request: Request) {
     const scope = await scopeQuery(parsed.data.question);
 
     const conditions = [];
-    if (scope.category) conditions.push(eq(entries.category, scope.category));
     if (scope.from) conditions.push(gte(entries.occurredAt, new Date(scope.from)));
     if (scope.to) conditions.push(lte(entries.occurredAt, new Date(scope.to)));
 

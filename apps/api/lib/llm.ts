@@ -43,9 +43,9 @@ export async function scopeQuery(question: string): Promise<QueryScope> {
   const { output } = await generateText({
     model: anthropic("claude-haiku-4-5"),
     system: [
-      "You turn a spoken question into a date range and optional category filter over a personal log.",
+      "You turn a spoken question into a date range over a personal log.",
       nowContext(),
-      "If the question implies no clear date range, leave `from` and `to` null (meaning: search all time). If it implies no clear category, leave `category` null.",
+      "If the question implies no clear date range, leave `from` and `to` null (meaning: search all time).",
     ].join("\n"),
     prompt: question,
     output: Output.object({ schema: QueryScopeSchema }),

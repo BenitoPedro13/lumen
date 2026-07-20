@@ -34,9 +34,12 @@ export const ExtractionSchema = z.object({
 export type Extraction = z.infer<typeof ExtractionSchema>;
 
 // Output of the query-scoping LLM call for POST /ask, step 1.
-// See docs/architecture/overview.md §6.2.
+// See docs/architecture/overview.md §6.2. No `category` field — it was dropped after
+// real usage showed the extraction call and this call can independently guess different
+// categories for the same ambiguous thing (e.g. "water" as food vs. other), and a hard
+// category-equality filter turned that mismatch into false "nothing logged" answers. Date
+// range narrows the SQL query; the answer-generation call does the semantic matching.
 export const QueryScopeSchema = z.object({
-  category: z.enum(CATEGORIES).nullable(),
   from: z.string().datetime({ offset: true }).nullable(),
   to: z.string().datetime({ offset: true }).nullable(),
 });

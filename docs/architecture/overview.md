@@ -253,11 +253,17 @@ latency and cost down. Reserve Sonnet for `/ask`, where reasoning quality matter
 
 Two-step, not one giant prompt:
 
-1. **Scope the query.** A small model call (or even a plain heuristic first) turns the
-   question into a date range + optional category filter — "how many times did I go to the
-   gym this month" → `{category: "fitness", from: <1st of month>, to: <now>}`.
-2. **Answer over the retrieved rows.** Fetch matching `entries`, feed them + the original
-   question to Claude, and constrain the output to a single spoken sentence:
+1. **Scope the query.** A small model call turns the question into a date range —
+   "how many times did I go to the gym this month" → `{from: <1st of month>, to: <now>}`.
+   No category filter: an earlier version had this call also guess a `category` and used
+   it as a hard SQL equality filter, but that call and the extraction call in §6.1 run
+   independently and can disagree on an ambiguous category (e.g. "water" as food vs.
+   other) — real usage showed this silently dropping genuine matches ("I don't have
+   anything logged" for something that *was* logged). Category stays informational only,
+   passed to the answer-generation step as context, never as a retrieval filter.
+2. **Answer over the retrieved rows.** Fetch matching `entries` (date-filtered, up to 200,
+   most recent first — no category filter, see above), feed them + the original question to
+   Claude, and constrain the output to a single spoken sentence:
 
 ```ts
 const AnswerSchema = z.object({
