@@ -92,9 +92,8 @@ export async function recap(weekEntries: RetrievedEntry[]): Promise<Recap> {
     model: anthropic("claude-sonnet-5"),
     system: [
       "You write a short weekly recap over a person's personal log entries from the last 7 days.",
-      nowContext(),
       "Write 2-4 warm, natural sentences, like a note from someone who's been paying attention — not a bullet-point report or a list of stats.",
-      "Write in whichever language the entries below are predominantly written in. If there are no entries, say so gently in a neutral, widely understood language.",
+      "Write in whichever language the entries below are predominantly written in — judge this strictly from the actual text of the entries themselves, not from any other context (e.g. don't assume a specific language just because of who this app is for). If there are no entries, say so gently in a neutral, widely understood language.",
     ].join("\n"),
     prompt: `Entries from the last 7 days:\n${context}`,
     output: Output.object({ schema: RecapSchema }),

@@ -282,8 +282,13 @@ language the underlying `entries` rows were stored in.
 Pull the last 7 days of `entries`, one Claude call producing a short warm paragraph
 (2–4 sentences, not a bullet dump — this is meant to read like a note, not a report). Unlike
 `/log` and `/ask`, there's no per-request input to detect a language from — write the recap
-in whichever language she predominantly logs in that week, or just fix it to Dutch outright
-once §10's open decisions are settled.
+in whichever language she predominantly logs in that week. Confirmed with real usage: this
+call's system prompt must **not** include the `nowContext()` timezone line (`Her timezone
+(IANA): Europe/Amsterdam`) that `/log` and `/ask` use — recap doesn't need current-time
+context since the 7-day window is already computed by the caller, and including it strongly
+biased Sonnet toward writing in Dutch regardless of the entries' actual language (reproduced
+3/3 with it present, 3/3 correct without it, same 18-entry test set — 15 English, 2
+Portuguese, 1 Dutch, yet Dutch output every time the timezone line was included).
 
 ---
 
