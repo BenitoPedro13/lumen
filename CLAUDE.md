@@ -5,13 +5,16 @@ Siri; Siri talks to Lumen; Lumen remembers things and answers questions about
 them — no app, no typing, no visible tech. Built as a pnpm/Turborepo monorepo
 deployed to Vercel.
 
-> **Status: Phase 0 complete — smoke-tested end-to-end.**
+> **Status: Phase 0 + Phase 2 complete — smoke-tested end-to-end, not yet deployed.**
 > Monorepo scaffolded, decisions resolved (`docs/architecture/overview.md`
-> §10), Neon provisioned and migrated, `/health`, `/log`, `/ask` implemented
-> in `apps/api` (Next.js App Router route handlers) and verified against the
-> real Anthropic API + Neon, including the Dutch-language path. Next: Phase 2
-> — `/recap/run` + Vercel Cron entry in `apps/api/vercel.ts` (see
-> `docs/architecture/overview.md` §6.3).
+> §10), Neon provisioned and migrated, `/health`, `/log`, `/ask`, `/recap/run`
+> all implemented in `apps/api` (Next.js App Router route handlers) and
+> verified locally against the real Anthropic API + Neon, including the
+> Dutch-language path. Vercel Cron entry for `/recap/run` is set in
+> `apps/api/vercel.ts`; ntfy delivery code is in place but `NTFY_TOPIC` isn't
+> set yet, and no Vercel deployment exists yet (deferred deliberately — see
+> git history). Next: Phase 1 — the two Shortcuts, which needs a deployed
+> preview URL to point at first.
 
 ---
 

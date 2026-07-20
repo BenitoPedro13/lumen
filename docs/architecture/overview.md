@@ -94,7 +94,7 @@ flowchart LR
     S2 -- "POST /ask" --> API
     API <--> ANTH
     API <--> DB
-    CRON -- "POST /recap/run" --> API
+    CRON -- "GET /recap/run" --> API
     API --> PUSH
     PUSH --> Phone
 ```
@@ -164,7 +164,11 @@ actually talks to.
 
 ### 4.4 Scheduler + push
 
-- Vercel Cron (declared in `apps/api/vercel.ts`) hits `/recap/run` every Sunday at a fixed time.
+- Vercel Cron (declared in `apps/api/vercel.ts`) hits `/recap/run` every Sunday at a fixed
+  time, via a **GET** request — Vercel Cron always invokes with GET, not POST, and
+  auto-attaches `Authorization: Bearer $CRON_SECRET` once `CRON_SECRET` is set as a project
+  env var. `/recap/run` checks that header, not the shared `LUMEN_API_TOKEN` `/log` and `/ask`
+  use — Shortcuts never calls this endpoint directly, only the scheduler does.
 - Delivery: ntfy.sh is the simplest (free, no account friction, one HTTP POST, has an iOS
   app that shows a native notification). Pushcut is the upgrade if you want the recap
   notification itself to be tappable into a richer Shortcut-driven view later.
@@ -267,7 +271,7 @@ eval pass once you have a few weeks of real data. `answer` follows the same lang
 as extraction (§6.0): reply in the language the question was asked in, regardless of which
 language the underlying `entries` rows were stored in.
 
-### 6.3 Recap (`POST /recap/run`, cron-triggered)
+### 6.3 Recap (`GET /recap/run`, cron-triggered)
 
 Pull the last 7 days of `entries`, one Claude call producing a short warm paragraph
 (2–4 sentences, not a bullet dump — this is meant to read like a note, not a report). Unlike
@@ -279,13 +283,15 @@ once §10's open decisions are settled.
 
 ## 7. API contract
 
-All endpoints require `Authorization: Bearer <SHARED_TOKEN>`.
+`/log` and `/ask` require `Authorization: Bearer <LUMEN_API_TOKEN>` (the shared token both
+Shortcuts send). `/recap/run` instead requires `Authorization: Bearer <CRON_SECRET>`,
+attached automatically by Vercel Cron — nothing else should call it.
 
 | Method | Path          | Body                    | Response                              |
 |--------|---------------|--------------------------|----------------------------------------|
 | POST   | `/log`        | `{ "text": string }`      | `{ "confirmation": string }`           |
 | POST   | `/ask`        | `{ "question": string }`  | `{ "answer": string }`                 |
-| POST   | `/recap/run`  | *(none, cron only)*       | `{ "ok": true }`                       |
+| GET    | `/recap/run`  | *(none, cron only)*       | `{ "ok": true }`                       |
 | GET    | `/health`     | —                         | `{ "ok": true }`                       |
 
 Error responses still return `200` with a spoken-safe fallback string in the same shape

@@ -51,3 +51,12 @@ export const AnswerSchema = z.object({
 });
 
 export type Answer = z.infer<typeof AnswerSchema>;
+
+// Output of the weekly recap LLM call for the /recap/run cron job.
+// See docs/architecture/overview.md §6.3. No per-request input to detect a language
+// from — the prompt picks whichever language the week's entries are predominantly in.
+export const RecapSchema = z.object({
+  recap: z.string(),
+});
+
+export type Recap = z.infer<typeof RecapSchema>;

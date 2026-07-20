@@ -5,9 +5,11 @@ import {
   AnswerSchema,
   ExtractionSchema,
   QueryScopeSchema,
+  RecapSchema,
   type Answer,
   type Extraction,
   type QueryScope,
+  type Recap,
 } from "@lumen/core";
 
 // See docs/architecture/overview.md §10 decision 2 — IANA zone, not a fixed
@@ -75,6 +77,27 @@ export async function answer(question: string, entries: RetrievedEntry[]): Promi
     ].join("\n"),
     prompt: `Question: ${question}\n\nRetrieved entries:\n${context}`,
     output: Output.object({ schema: AnswerSchema }),
+  });
+  return output;
+}
+
+export async function recap(weekEntries: RetrievedEntry[]): Promise<Recap> {
+  const context = weekEntries.length
+    ? weekEntries
+        .map((e) => `- [${e.occurredAt.toISOString()}] (${e.category}) ${e.summary}`)
+        .join("\n")
+    : "(nothing logged this week)";
+
+  const { output } = await generateText({
+    model: anthropic("claude-sonnet-5"),
+    system: [
+      "You write a short weekly recap over a person's personal log entries from the last 7 days.",
+      nowContext(),
+      "Write 2-4 warm, natural sentences, like a note from someone who's been paying attention — not a bullet-point report or a list of stats.",
+      "Write in whichever language the entries below are predominantly written in. If there are no entries, say so gently in a neutral, widely understood language.",
+    ].join("\n"),
+    prompt: `Entries from the last 7 days:\n${context}`,
+    output: Output.object({ schema: RecapSchema }),
   });
   return output;
 }
