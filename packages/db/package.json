@@ -12,11 +12,11 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.0",
-    "drizzle-orm": "^0.36.0"
+    "drizzle-orm": "^0.45.0"
   },
   "devDependencies": {
     "@lumen/config": "workspace:*",
-    "drizzle-kit": "^0.28.0",
+    "drizzle-kit": "^0.31.0",
     "typescript": "^5.7.0"
   }
 }
