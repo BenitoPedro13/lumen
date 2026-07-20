@@ -23,7 +23,7 @@ function nowContext(): string {
   return `Current UTC time: ${new Date().toISOString()}. Her timezone (IANA): ${TIMEZONE}.`;
 }
 
-export async function extract(text: string): Promise<Extraction> {
+export async function extract(text: string, milestoneHints: string[] = []): Promise<Extraction> {
   const { output } = await generateText({
     model: anthropic("claude-haiku-4-5"),
     system: [
@@ -32,6 +32,13 @@ export async function extract(text: string): Promise<Extraction> {
       "Resolve relative times ('this morning', 'at 8 and again at 5') against the current time and timezone above.",
       LANGUAGE_RULE,
       "`confirmation` is a short sentence spoken aloud by Siri right after this — no markdown, no lists, just a natural spoken sentence.",
+      ...(milestoneHints.length
+        ? [
+            `Notable fact about this specific log, for your own context only — never state it as raw data: ${milestoneHints.join(" ")} Add one brief, warm clause mentioning this in \`confirmation\` (in her language) — don't skip it, but keep it natural and short, like an aside from a friend, not like a notification.`,
+          ]
+        : [
+            "Do not mention counts, streaks, or stats in `confirmation` — just confirm what was logged.",
+          ]),
     ].join("\n"),
     prompt: text,
     output: Output.object({ schema: ExtractionSchema }),
@@ -81,7 +88,7 @@ export async function answer(question: string, entries: RetrievedEntry[]): Promi
   return output;
 }
 
-export async function recap(weekEntries: RetrievedEntry[]): Promise<Recap> {
+export async function recap(weekEntries: RetrievedEntry[], statsContext?: string): Promise<Recap> {
   const context = weekEntries.length
     ? weekEntries
         .map((e) => `- [${e.occurredAt.toISOString()}] (${e.category}) ${e.summary}`)
@@ -94,6 +101,11 @@ export async function recap(weekEntries: RetrievedEntry[]): Promise<Recap> {
       "You write a short weekly recap over a person's personal log entries from the last 7 days.",
       "Write 2-4 warm, natural sentences, like a note from someone who's been paying attention — not a bullet-point report or a list of stats.",
       "Write in whichever language the entries below are predominantly written in — judge this strictly from the actual text of the entries themselves, not from any other context (e.g. don't assume a specific language just because of who this app is for). If there are no entries, say so gently in a neutral, widely understood language.",
+      ...(statsContext
+        ? [
+            `Some numbers about this week, for your own context only: ${statsContext} Weave in at most one or two of these if they make the recap warmer or more interesting (e.g. a streak, a nice jump from last week) — skip any that aren't actually interesting, and never present them as a mechanical list.`,
+          ]
+        : []),
     ].join("\n"),
     prompt: `Entries from the last 7 days:\n${context}`,
     output: Output.object({ schema: RecapSchema }),

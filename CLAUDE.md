@@ -84,6 +84,10 @@ private admin dashboard is a Phase 4 maybe, not a Phase 0 default.
   plan: product goals, the two Siri flows, architecture diagram, data model,
   LLM prompt design, API contract, security, phased build plan, and the open
   decisions blocking Phase 0.
+- [`docs/architecture/roadmap.md`](docs/architecture/roadmap.md) — post-MVP
+  planning doc (not yet implemented): the per-user privacy gap (both of you
+  currently share one token and see each other's entries), self-serve
+  automation support for her, and the wider feature backlog.
 - [`CLAUDE.md`](CLAUDE.md) — this file: workflow + project context for AI agents.
 
 ---
@@ -109,10 +113,12 @@ private admin dashboard is a Phase 4 maybe, not a Phase 0 default.
   `next dev` is Vercel's most battle-tested local path. No pages exist —
   `next`/`react`/`react-dom` are dependencies only because the framework
   requires them. See §4.1.
-- **No vector DB / embeddings for v1.** At personal-journal scale, a SQL date +
-  category filter comfortably outperforms the complexity of semantic search.
-  Revisit only if `/ask` starts needing fuzzy recall over months of history.
-  See §4.3.
+- **No vector DB / embeddings for v1** — was the original stance, conditioned
+  on revisiting once there's real usage (§4.3). That condition has now been
+  met (MVP shipped, both of you using it), so this is explicitly unblocked
+  for consideration — see `docs/architecture/roadmap.md` §2. Still don't add
+  it speculatively; add it when a real question falls through plain date/
+  category filtering.
 - **Errors never surface as errors.** Every endpoint returns `200` with a
   spoken-safe fallback sentence in the normal response shape — Siri has no
   error-handling UX, so the contract's job is to always give it something sane

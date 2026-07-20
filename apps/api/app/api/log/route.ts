@@ -4,6 +4,7 @@ import { z } from "zod";
 import { isAuthorized } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { extract } from "@/lib/llm";
+import { milestoneHints, statsForNewEntry } from "@/lib/stats";
 
 const LogBody = z.object({ text: z.string().min(1) });
 
@@ -18,7 +19,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const extraction = await extract(parsed.data.text);
+    const stats = await statsForNewEntry();
+    const extraction = await extract(parsed.data.text, milestoneHints(stats));
     await db.insert(entries).values({
       occurredAt: new Date(extraction.occurred_at),
       rawText: parsed.data.text,
