@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { setSessionToken } from "@/lib/session";
-import { apiGet } from "@/lib/api";
+import { verifyToken } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,15 +17,10 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // Verify token by calling GET /api/me
-      const response = await fetch("http://localhost:3000/api/me", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const result = await verifyToken(token);
 
-      if (!response.ok) {
-        throw new Error("Invalid token");
+      if (!result.ok) {
+        throw new Error(result.error || "Invalid token");
       }
 
       // Set session and redirect

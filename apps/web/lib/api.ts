@@ -1,3 +1,5 @@
+"use server";
+
 import { getSessionToken } from "./session";
 
 const API_URL = process.env.LUMEN_API_URL || "http://localhost:3000";
@@ -48,4 +50,23 @@ export async function apiPost<T>(path: string, body: Record<string, any>): Promi
 
 export async function apiPatch<T>(path: string, body: Record<string, any>): Promise<ApiResponse<T>> {
   return apiCall<T>("PATCH", path, body);
+}
+
+export async function verifyToken<T>(token: string): Promise<ApiResponse<T>> {
+  try {
+    const response = await fetch(`${API_URL}/api/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+      return { ok: false, error: error.error || "Invalid token" };
+    }
+
+    const data = await response.json();
+    return { ok: true, data };
+  } catch (err) {
+    console.error("Token verification failed", err);
+    return { ok: false, error: "Network error" };
+  }
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { setSessionToken } from "@/lib/session";
+import { apiPost } from "@/lib/api";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -20,25 +21,18 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:3000/api/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code,
-          name,
-          ntfyTopic: ntfyTopic || undefined,
-        }),
+      const result = await apiPost<{ token: string }>("/signup", {
+        code,
+        name,
+        ntfyTopic: ntfyTopic || undefined,
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Signup failed");
+      if (!result.ok || !result.data) {
+        throw new Error(result.error || "Signup failed");
       }
 
-      const data = await response.json();
-
       // Set session with returned token and redirect to setup
-      await setSessionToken(data.token);
+      await setSessionToken(result.data.token);
       router.push("/dashboard/setup");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signup failed");
