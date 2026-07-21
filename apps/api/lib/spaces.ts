@@ -1,6 +1,6 @@
 import { randomBytes } from "crypto";
 
-import { and, eq, spaceMembers, spaces } from "@lumen/db";
+import { and, eq, signupInvites, spaceMembers, spaces, users } from "@lumen/db";
 
 import { db } from "@/lib/db";
 
@@ -135,4 +135,99 @@ export async function ensureDefaultSpace(userId: number, spaceName: string = "Mi
   });
 
   return space.id;
+}
+
+export async function createSignupInvite(userId: number): Promise<string> {
+  const code = generateInviteCode();
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+  await db.insert(signupInvites).values({
+    code,
+    createdBy: userId,
+    expiresAt,
+  });
+
+  return code;
+}
+
+export interface SignupInviteValidation {
+  valid: boolean;
+  reason?: string;
+}
+
+export async function validateSignupInvite(code: string): Promise<SignupInviteValidation> {
+  const [invite] = await db.select().from(signupInvites).where(eq(signupInvites.code, code));
+
+  if (!invite) {
+    return { valid: false, reason: "Invite code not found" };
+  }
+
+  if (invite.usedBy !== null) {
+    return { valid: false, reason: "Invite code already used" };
+  }
+
+  if (new Date() > invite.expiresAt) {
+    return { valid: false, reason: "Invite code expired" };
+  }
+
+  return { valid: true };
+}
+
+export async function redeemSignupInvite(code: string, userId: number): Promise<boolean> {
+  const result = await db
+    .update(signupInvites)
+    .set({ usedBy: userId, redeemedAt: new Date() })
+    .where(and(eq(signupInvites.code, code), eq(signupInvites.usedBy, null)))
+    .returning();
+
+  return result.length > 0;
+}
+
+export interface TaskLeaderboardEntry {
+  userId: number;
+  userName: string;
+  points: number;
+}
+
+export async function taskLeaderboard(spaceId: number): Promise<TaskLeaderboardEntry[]> {
+  // This is a simplified version — a real implementation would use SQL aggregation
+  // For now, we fetch all tasks and compute leaderboard in JS
+  const { inArray, sql, entries: entriesTable } = await import("@lumen/db");
+
+  const taskRows = await db
+    .select({
+      id: entriesTable.id,
+      createdBy: entriesTable.createdBy,
+      data: entriesTable.data,
+    })
+    .from(entriesTable)
+    .where(and(eq(entriesTable.spaceId, spaceId), eq(entriesTable.kind, "task")));
+
+  const leaderboard: Record<number, { userId: number; points: number }> = {};
+
+  for (const task of taskRows) {
+    const data = task.data as Record<string, any>;
+    if (data.done && data.completedBy) {
+      const uid = Number(data.completedBy);
+      if (!leaderboard[uid]) {
+        leaderboard[uid] = { userId: uid, points: 0 };
+      }
+      leaderboard[uid].points += (data.points ?? 0);
+    }
+  }
+
+  // Fetch user names
+  const userIds = Object.keys(leaderboard).map(Number);
+  if (userIds.length === 0) return [];
+
+  const userRows = await db.select().from(users).where(inArray(users.id, userIds));
+  const userMap = new Map(userRows.map((u) => [u.id, u.name]));
+
+  return Object.values(leaderboard)
+    .map((entry) => ({
+      userId: entry.userId,
+      userName: userMap.get(entry.userId) || "Unknown",
+      points: entry.points,
+    }))
+    .sort((a, b) => b.points - a.points);
 }

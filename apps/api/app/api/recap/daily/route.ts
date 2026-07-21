@@ -1,4 +1,4 @@
-import { and, desc, entries, eq, inArray, sql } from "@lumen/db";
+import { and, desc, entries, eq, inArray, recapLog, sql } from "@lumen/db";
 
 import { isAuthorizedCron } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -62,6 +62,14 @@ export async function GET(request: Request) {
               summary: row.summary,
             })),
           );
+
+          // Persist daily note
+          await db.insert(recapLog).values({
+            userId: user.id,
+            kind: "daily",
+            text: result.note,
+          });
+
           await pushNotification(result.note, "Daily note", user.ntfyTopic!);
           continue;
         }
@@ -93,6 +101,14 @@ export async function GET(request: Request) {
               summary: row.summary,
             })),
           );
+
+          // Persist check-in nudge
+          await db.insert(recapLog).values({
+            userId: user.id,
+            kind: "nudge",
+            text: result.text,
+          });
+
           await pushNotification(result.text, "Checking in", user.ntfyTopic!);
         }
       } catch (userErr) {

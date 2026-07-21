@@ -47,6 +47,24 @@ export const spaceMembers = pgTable(
   ],
 );
 
+export const signupInvites = pgTable("signup_invites", {
+  id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+  code: text("code").notNull().unique(),
+  createdBy: bigint("created_by", { mode: "number" }).notNull(),
+  usedBy: bigint("used_by", { mode: "number" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
+});
+
+export const recapLog = pgTable("recap_log", {
+  id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+  userId: bigint("user_id", { mode: "number" }).notNull(),
+  kind: text("kind", { enum: ["weekly", "daily", "nudge"] }).notNull(),
+  text: text("text").notNull(),
+  sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // See docs/architecture/overview.md §5 for the rationale (jsonb `data` bag,
 // free-text `category` instead of an enum column).
 export const entries = pgTable(

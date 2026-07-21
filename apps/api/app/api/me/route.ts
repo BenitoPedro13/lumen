@@ -2,13 +2,25 @@ import { z } from "zod";
 
 import { resolveUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { users } from "@lumen/db";
-import { eq } from "@lumen/db";
+import { eq, users } from "@lumen/db";
 
 const UpdateMeBody = z.object({
   ntfyTopic: z.string().optional(),
   name: z.string().optional(),
 });
+
+export async function GET(request: Request) {
+  const user = await resolveUser(request);
+  if (!user) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  return Response.json({
+    id: user.id,
+    name: user.name,
+    ntfyTopic: user.ntfyTopic,
+  });
+}
 
 export async function PATCH(request: Request) {
   const user = await resolveUser(request);

@@ -1,4 +1,4 @@
-import { and, desc, entries, eq, gte, inArray, lt, sql } from "@lumen/db";
+import { and, desc, entries, eq, gte, inArray, lt, recapLog, sql } from "@lumen/db";
 
 import { isAuthorizedCron } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -88,6 +88,13 @@ export async function GET(request: Request) {
           statsContext,
           callbacks,
         );
+
+        // Persist recap log
+        await db.insert(recapLog).values({
+          userId: user.id,
+          kind: "weekly",
+          text: result.recap,
+        });
 
         await pushNotification(result.recap, "Weekly recap", user.ntfyTopic!);
       } catch (userErr) {
