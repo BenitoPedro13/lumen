@@ -1,6 +1,6 @@
 import { randomBytes } from "crypto";
 
-import { and, eq, signupInvites, spaceMembers, spaces, users } from "@lumen/db";
+import { and, eq, isNull, signupInvites, spaceMembers, spaces, users } from "@lumen/db";
 
 import { db } from "@/lib/db";
 
@@ -177,7 +177,7 @@ export async function redeemSignupInvite(code: string, userId: number): Promise<
   const result = await db
     .update(signupInvites)
     .set({ usedBy: userId, redeemedAt: new Date() })
-    .where(and(eq(signupInvites.code, code), eq(signupInvites.usedBy, null)))
+    .where(and(eq(signupInvites.code, code), isNull(signupInvites.usedBy)))
     .returning();
 
   return result.length > 0;
