@@ -71,15 +71,36 @@ each time.
 
 ## 1. Feature backlog (from earlier brainstorm, 2026-07-20)
 
-Cheap wins — pure SQL/cron over the existing `entries` table, no new prompt design:
+**Shipped** (all built on top of the existing `entries` table, no schema
+changes needed):
 
-- **Streaks/counters** — "how many days since I last —" as a direct query.
-- **Proactive nudges** — cron compares recent entries to her own rolling
-  average (e.g. `spending` spike, `mood` trending low several days running)
-  and pushes an ntfy alert outside the normal Sunday cadence.
-- **Correction flow** — "actually I meant X" as a follow-up that amends/
-  supersedes the most recent entry, instead of a bad transcription sitting
-  wrong in the DB forever.
+- **Streaks/counters** — `apps/api/lib/stats.ts`. Milestone-aware `/log`
+  confirmations, week-over-week + streak context in the weekly recap.
+- **On-this-day** — `apps/api/lib/on-this-day.ts`. Nostalgic callbacks
+  ("a year ago you were...") woven into the weekly recap when history exists.
+- **Correction flow** — "actually, make that X" now updates the entry logged
+  in the last 15 minutes instead of inserting a new one, via an `is_correction`
+  field the extraction call sets when a recent-enough prior entry is shown as
+  context. See `ExtractionSchema` in `packages/core/src/schemas.ts` and
+  `apps/api/app/api/log/route.ts`.
+- **Daily recap/check-in** — `apps/api/app/api/recap/daily/route.ts`, cron'd
+  Mon-Sat (Sunday stays the weekly recap only, see `apps/api/vercel.ts`).
+  Sends a light one-sentence daily note if anything was logged that day;
+  otherwise a gentle one-shot check-in nudge if she's gone quiet 48-72h;
+  otherwise nothing. This is the "proactive nudges" idea below, scoped down
+  to the one variant that's actually usable at current data volume (silence
+  detection needs no history; a spending/mood rolling-average baseline does).
+
+**Still open** — the rest of the original "proactive nudges" idea:
+
+- **Spending/mood rolling-average nudges** — cron compares recent entries to
+  her own rolling average (e.g. a `spending` spike, `mood` trending low
+  several days running) and pushes an alert. Deferred, not built, because
+  there isn't yet enough history for a rolling average to mean anything, and
+  because summing `data->>'amount'` safely needs a bit more care (cast
+  guarding against non-numeric/missing values) than was worth doing ahead of
+  real data to test it against. Revisit once there's a few weeks of spending
+  entries.
 
 Carried over from overview.md §9 Phase 4 (unchanged, just indexed here):
 
@@ -90,9 +111,6 @@ Carried over from overview.md §9 Phase 4 (unchanged, just indexed here):
 
 Medium effort, new query/prompt shapes:
 
-- **On-this-day** — date-shifted query surfacing what was logged the same
-  week last month/year. No schema change, just a different `WHERE` clause;
-  high emotional payoff for a memory product.
 - **Per-category recap digest** — split the weekly summary into threads
   (spending vs. mood vs. fitness) instead of one flat paragraph, since
   `category` is already there to group by.

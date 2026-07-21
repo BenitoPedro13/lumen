@@ -3,14 +3,20 @@ import { generateText, Output } from "ai";
 
 import {
   AnswerSchema,
+  DailyNoteSchema,
   ExtractionSchema,
+  NudgeSchema,
   QueryScopeSchema,
   RecapSchema,
   type Answer,
+  type DailyNote,
   type Extraction,
+  type Nudge,
   type QueryScope,
   type Recap,
 } from "@lumen/core";
+
+import type { OnThisDayCallback } from "@/lib/on-this-day";
 
 // See docs/architecture/overview.md §10 decision 2 — IANA zone, not a fixed
 // offset, since Europe/Amsterdam observes DST.
@@ -23,7 +29,16 @@ function nowContext(): string {
   return `Current UTC time: ${new Date().toISOString()}. Her timezone (IANA): ${TIMEZONE}.`;
 }
 
-export async function extract(text: string, milestoneHints: string[] = []): Promise<Extraction> {
+export interface RecentEntry {
+  rawText: string;
+  summary: string;
+}
+
+export async function extract(
+  text: string,
+  milestoneHints: string[] = [],
+  recentEntry?: RecentEntry,
+): Promise<Extraction> {
   const { output } = await generateText({
     model: anthropic("claude-haiku-4-5"),
     system: [
@@ -32,6 +47,12 @@ export async function extract(text: string, milestoneHints: string[] = []): Prom
       "Resolve relative times ('this morning', 'at 8 and again at 5') against the current time and timezone above.",
       LANGUAGE_RULE,
       "`confirmation` is a short sentence spoken aloud by Siri right after this — no markdown, no lists, just a natural spoken sentence.",
+      "`is_correction` is false unless the instructions below say otherwise.",
+      ...(recentEntry
+        ? [
+            `The most recent thing she logged, in case this new dictation is actually correcting or amending it rather than starting a new independent log: "${recentEntry.rawText}" (summarized as: ${recentEntry.summary}). If this new text is clearly a correction/amendment to that specific entry (e.g. "actually...", "wait, I meant...", "no, make that...", or otherwise clearly refers back to it) — set \`is_correction\` to true, and make \`category\`/\`summary\`/\`data\`/\`occurred_at\` reflect the full corrected fact by combining the original with the correction, and phrase \`confirmation\` as acknowledging an update (e.g. "Got it, updated that to...", in her language). Otherwise set \`is_correction\` to false and treat this as a completely independent new log, ignoring the entry above entirely.`,
+          ]
+        : []),
       ...(milestoneHints.length
         ? [
             `Notable fact about this specific log, for your own context only — never state it as raw data: ${milestoneHints.join(" ")} Add one brief, warm clause mentioning this in \`confirmation\` (in her language) — don't skip it, but keep it natural and short, like an aside from a friend, not like a notification.`,
@@ -88,12 +109,27 @@ export async function answer(question: string, entries: RetrievedEntry[]): Promi
   return output;
 }
 
-export async function recap(weekEntries: RetrievedEntry[], statsContext?: string): Promise<Recap> {
+export async function recap(
+  weekEntries: RetrievedEntry[],
+  statsContext?: string,
+  callbacks: OnThisDayCallback[] = [],
+): Promise<Recap> {
   const context = weekEntries.length
     ? weekEntries
         .map((e) => `- [${e.occurredAt.toISOString()}] (${e.category}) ${e.summary}`)
         .join("\n")
     : "(nothing logged this week)";
+
+  const callbackContext = callbacks.length
+    ? callbacks
+        .map(
+          (callback) =>
+            `${callback.label}:\n${callback.entries
+              .map((e) => `  - (${e.category}) ${e.summary}`)
+              .join("\n")}`,
+        )
+        .join("\n")
+    : "";
 
   const { output } = await generateText({
     model: anthropic("claude-sonnet-5"),
@@ -106,9 +142,52 @@ export async function recap(weekEntries: RetrievedEntry[], statsContext?: string
             `Some numbers about this week, for your own context only: ${statsContext} Weave in at most one or two of these if they make the recap warmer or more interesting (e.g. a streak, a nice jump from last week) — skip any that aren't actually interesting, and never present them as a mechanical list.`,
           ]
         : []),
+      ...(callbackContext
+        ? [
+            `For optional nostalgic color, here's what was logged around this same time in the past:\n${callbackContext}\nIf something there is genuinely worth a brief callback (e.g. "a year ago you were..."), include at most one, in one short clause — otherwise ignore this entirely, don't force it.`,
+          ]
+        : []),
     ].join("\n"),
     prompt: `Entries from the last 7 days:\n${context}`,
     output: Output.object({ schema: RecapSchema }),
+  });
+  return output;
+}
+
+export async function dailyNote(todayEntries: RetrievedEntry[]): Promise<DailyNote> {
+  const context = todayEntries
+    .map((e) => `- [${e.occurredAt.toISOString()}] (${e.category}) ${e.summary}`)
+    .join("\n");
+
+  const { output } = await generateText({
+    model: anthropic("claude-haiku-4-5"),
+    system: [
+      "You write ONE short, warm sentence recapping what a person logged today, sent as a light evening notification.",
+      LANGUAGE_RULE + " Judge the language from the entries below, not from any other context.",
+      "No markdown, no lists — a single natural spoken-style sentence, much shorter and lighter than a weekly recap.",
+    ].join("\n"),
+    prompt: `Today's entries:\n${context}`,
+    output: Output.object({ schema: DailyNoteSchema }),
+  });
+  return output;
+}
+
+export async function checkInNudge(recentEntries: RetrievedEntry[]): Promise<Nudge> {
+  const context = recentEntries.length
+    ? recentEntries
+        .map((e) => `- [${e.occurredAt.toISOString()}] (${e.category}) ${e.summary}`)
+        .join("\n")
+    : "(no recent entries)";
+
+  const { output } = await generateText({
+    model: anthropic("claude-haiku-4-5"),
+    system: [
+      "You write ONE short, warm, low-key check-in notification to someone who hasn't logged anything in their personal log for a couple of days.",
+      LANGUAGE_RULE + " Judge the language from the recent entries below, not from any other context.",
+      "No markdown, no guilt-tripping or alarmist tone — a gentle, low-pressure nudge, like a friend saying 'haven't heard from you in a bit'.",
+    ].join("\n"),
+    prompt: `Her most recent entries, for language/tone reference:\n${context}`,
+    output: Output.object({ schema: NudgeSchema }),
   });
   return output;
 }

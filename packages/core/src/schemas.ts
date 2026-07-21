@@ -29,6 +29,11 @@ export const ExtractionSchema = z.object({
   summary: z.string(),
   data: z.record(z.any()),
   confirmation: z.string(),
+  // True only when this dictation is amending the entry logged immediately
+  // before it (e.g. "actually, make that 45 minutes"), not a new fact —
+  // see docs/architecture/roadmap.md §1 "correction flow". The caller only
+  // asks the model to consider this when a recent-enough prior entry exists.
+  is_correction: z.boolean(),
 });
 
 export type Extraction = z.infer<typeof ExtractionSchema>;
@@ -63,3 +68,19 @@ export const RecapSchema = z.object({
 });
 
 export type Recap = z.infer<typeof RecapSchema>;
+
+// Output of the daily-note LLM call for the /recap/daily cron job — a much
+// shorter cousin of the weekly recap, one sentence about just today.
+export const DailyNoteSchema = z.object({
+  note: z.string(),
+});
+
+export type DailyNote = z.infer<typeof DailyNoteSchema>;
+
+// Output of the check-in nudge LLM call, sent by /recap/daily instead of a
+// daily note when nothing's been logged in a couple of days.
+export const NudgeSchema = z.object({
+  text: z.string(),
+});
+
+export type Nudge = z.infer<typeof NudgeSchema>;

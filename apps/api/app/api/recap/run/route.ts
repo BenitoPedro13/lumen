@@ -3,7 +3,8 @@ import { and, desc, entries, gte, lt, sql } from "@lumen/db";
 import { isAuthorizedCron } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { recap } from "@/lib/llm";
-import { pushRecap } from "@/lib/ntfy";
+import { pushNotification } from "@/lib/ntfy";
+import { onThisDayCallbacks } from "@/lib/on-this-day";
 import { currentStats } from "@/lib/stats";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
     const weekStart = new Date(Date.now() - SEVEN_DAYS_MS);
     const priorWeekStart = new Date(Date.now() - 2 * SEVEN_DAYS_MS);
 
-    const [rows, [priorWeekCountRow], stats] = await Promise.all([
+    const [rows, [priorWeekCountRow], stats, callbacks] = await Promise.all([
       db
         .select()
         .from(entries)
@@ -31,6 +32,7 @@ export async function GET(request: Request) {
         .from(entries)
         .where(and(gte(entries.occurredAt, priorWeekStart), lt(entries.occurredAt, weekStart))),
       currentStats(),
+      onThisDayCallbacks(),
     ]);
     const priorWeekCount = priorWeekCountRow?.count ?? 0;
 
@@ -58,9 +60,10 @@ export async function GET(request: Request) {
         summary: row.summary,
       })),
       statsContext,
+      callbacks,
     );
 
-    await pushRecap(result.recap);
+    await pushNotification(result.recap, "Weekly recap");
 
     return Response.json({ ok: true });
   } catch (err) {
