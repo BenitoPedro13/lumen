@@ -89,12 +89,12 @@ export default function SpaceDetailPage() {
               Share the invite code with others to let them join this space
             </p>
             <div style={{ background: "#f5f5f5", padding: "1rem", borderRadius: "0.375rem", marginBottom: "1rem" }}>
-              <code style={{ wordBreak: "break-all" }}>{space.inviteCode}</code>
+              <code style={{ wordBreak: "break-all" }}>{joinUrl}</code>
               <button
-                onClick={() => copyToClipboard(space.inviteCode!)}
+                onClick={() => copyToClipboard(joinUrl)}
                 style={{ marginLeft: "0.5rem", fontSize: "0.875rem", padding: "0.25rem 0.5rem" }}
               >
-                {copied ? "Copied!" : "Copy"}
+                {copied ? "Copied!" : "Copy Link"}
               </button>
             </div>
             <button onClick={handleRotateCode} style={{ background: "#f44336", fontSize: "0.875rem" }}>

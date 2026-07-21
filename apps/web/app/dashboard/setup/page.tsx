@@ -1,18 +1,13 @@
+import { headers } from "next/headers";
 import { getSessionToken } from "@/lib/session";
+import { CopyButton } from "./CopyButton";
 
 export default async function SetupPage() {
   const token = await getSessionToken() || "";
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent("http://localhost:3001/dashboard/setup")}`;
-
-  const CopyButton = ({ text }: { text: string }) => (
-    <button
-      onClick={() => {
-        navigator.clipboard.writeText(text);
-      }}
-    >
-      Copy Token
-    </button>
-  );
+  const headersList = await headers();
+  const host = headersList.get("host") || "localhost:3001";
+  const protocol = host.startsWith("localhost") ? "http" : "https";
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${protocol}://${host}/dashboard/setup`)}`;
 
   const logShortcutUrl = process.env.NEXT_PUBLIC_LOG_SHORTCUT_URL;
   const askShortcutUrl = process.env.NEXT_PUBLIC_ASK_SHORTCUT_URL;

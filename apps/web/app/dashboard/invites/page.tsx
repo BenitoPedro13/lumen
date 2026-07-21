@@ -18,7 +18,7 @@ export default function InvitesPage() {
     setLoading(true);
     const res = await apiPost<Invite>("/signup-invites", {});
     if (res.ok && res.data) {
-      setInvites([res.data, ...invites]);
+      setInvites([{ ...res.data, signupUrl: `${window.location.origin}${res.data.signupUrl}` }, ...invites]);
     }
     setLoading(false);
   };
