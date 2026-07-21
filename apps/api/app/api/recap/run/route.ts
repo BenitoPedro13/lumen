@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { recap } from "@/lib/llm";
 import { pushNotification } from "@/lib/ntfy";
 import { onThisDayCallbacks } from "@/lib/on-this-day";
+import { weeklyTaskLeaderboard } from "@/lib/spaces";
 import { currentStats } from "@/lib/stats";
 import { spaces, spaceMembers, users } from "@lumen/db";
 
@@ -41,6 +42,16 @@ export async function GET(request: Request) {
         const weekStart = new Date(Date.now() - SEVEN_DAYS_MS);
         const priorWeekStart = new Date(Date.now() - 2 * SEVEN_DAYS_MS);
 
+        // Shared task spaces (2+ members) this user belongs to, for the
+        // weekly-MVP callout — journal-only recap content stays separate.
+        const sharedTaskSpaces = await db
+          .select({ id: spaces.id, name: spaces.name, memberCount: sql<number>`count(*)::int` })
+          .from(spaceMembers)
+          .innerJoin(spaces, eq(spaceMembers.spaceId, spaces.id))
+          .where(eq(spaces.kind, "tasks"))
+          .groupBy(spaces.id, spaces.name)
+          .having(sql`count(*) > 1 and bool_or(${spaceMembers.userId} = ${user.id})`);
+
         const [rows, [priorWeekCountRow], stats, callbacks] = await Promise.all([
           db
             .select()
@@ -61,6 +72,20 @@ export async function GET(request: Request) {
           onThisDayCallbacks(spaceIds),
         ]);
         const priorWeekCount = priorWeekCountRow?.count ?? 0;
+
+        const taskLeaderboards = await Promise.all(
+          sharedTaskSpaces.map(async (space) => ({
+            name: space.name,
+            leaderboard: await weeklyTaskLeaderboard(space.id, weekStart),
+          })),
+        );
+        const taskContext = taskLeaderboards
+          .filter((t) => t.leaderboard.length > 0)
+          .map(
+            (t) =>
+              `"${t.name}": ${t.leaderboard.map((entry) => `${entry.userName} completed ${entry.points} points`).join(", ")}.`,
+          )
+          .join(" ");
 
         const categoryCounts = rows.reduce<Record<string, number>>((acc, row) => {
           acc[row.category] = (acc[row.category] ?? 0) + 1;
@@ -87,6 +112,7 @@ export async function GET(request: Request) {
           })),
           statsContext,
           callbacks,
+          taskContext || undefined,
         );
 
         // Persist recap log

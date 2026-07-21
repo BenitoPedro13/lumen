@@ -19,6 +19,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="nav-links">
             <a href="/dashboard">Home</a>
             <a href="/dashboard/spaces">Spaces</a>
+            <a href="/dashboard/recaps">Recaps</a>
             <a href="/dashboard/setup">Setup</a>
             <a href="/dashboard/invites">Invite</a>
             <a href="/dashboard/settings">Settings</a>

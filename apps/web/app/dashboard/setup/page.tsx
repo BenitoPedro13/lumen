@@ -90,11 +90,39 @@ export default async function SetupPage() {
               </li>
             </ul>
           </li>
-          <li>Add your token as a configurable input field in each Shortcut</li>
+          <li>Add your token as a configurable input field in each Shortcut (see the Setup tab's "Import Question")</li>
           <li>Add a Siri phrase to each</li>
         </ol>
         <p className="text-small" style={{ marginTop: "1rem" }}>
           API URL: <code>{apiUrl}/api</code>
+        </p>
+      </div>
+
+      <div className="card" style={{ marginTop: "2rem" }}>
+        <h3>Optional Extra Shortcuts</h3>
+        <p className="text-small" style={{ marginBottom: "1rem" }}>
+          Same manual-build pattern as above, not covered by the "Add to Siri" links yet:
+        </p>
+        <ul style={{ marginLeft: "1rem" }}>
+          <li className="text-small" style={{ marginBottom: "0.75rem" }}>
+            <strong>Recap Shortcut:</strong> Get Contents of URL (POST to <code>/api/recap/now</code>) → Get Value
+            for <code>recap</code> → Speak Text. Hear your weekly recap on demand instead of waiting for Sunday.
+          </li>
+          <li className="text-small" style={{ marginBottom: "0.75rem" }}>
+            <strong>Undo Shortcut:</strong> Get Contents of URL (POST to <code>/api/undo</code>) → Get Value for{" "}
+            <code>confirmation</code> → Speak Text. No dictation needed — it always retracts the last thing you
+            logged.
+          </li>
+          <li className="text-small">
+            <strong>What's Left Shortcut:</strong> Dictate Text → Get Contents of URL (POST to{" "}
+            <code>/api/tasks/open</code>, body <code>{"{ text: <dictated> }"}</code>) → Get Value for{" "}
+            <code>answer</code> → Speak Text. Reads back what's still open in a task space.
+          </li>
+        </ul>
+        <p className="text-small" style={{ marginTop: "1rem" }}>
+          <a href="/dashboard/help" style={{ color: "#0066cc", textDecoration: "underline" }}>
+            What do these actually do?
+          </a>
         </p>
       </div>
     </div>

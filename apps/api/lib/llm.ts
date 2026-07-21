@@ -11,6 +11,7 @@ import {
   QueryScopeSchema,
   RecapSchema,
   TaskActionSchema,
+  UndoSchema,
   type Answer,
   type DailyNote,
   type Extraction,
@@ -18,6 +19,7 @@ import {
   type QueryScope,
   type Recap,
   type TaskAction,
+  type Undo,
 } from "@lumen/core";
 
 import type { UserSpace } from "@/lib/spaces";
@@ -182,6 +184,7 @@ export async function recap(
   weekEntries: RetrievedEntry[],
   statsContext?: string,
   callbacks: OnThisDayCallback[] = [],
+  taskContext?: string,
 ): Promise<Recap> {
   const context = weekEntries.length
     ? weekEntries
@@ -216,6 +219,11 @@ export async function recap(
             `For optional nostalgic color, here's what was logged around this same time in the past:\n${callbackContext}\nIf something there is genuinely worth a brief callback (e.g. "a year ago you were..."), include at most one, in one short clause — otherwise ignore this entirely, don't force it.`,
           ]
         : []),
+      ...(taskContext
+        ? [
+            `This person also shares one or more task lists with someone else. This week's standings there: ${taskContext} If it's genuinely interesting (someone's ahead, a close race, a big week), mention it in one short, friendly clause — like ribbing a friend, not a leaderboard readout. Skip it entirely if it's not actually interesting (e.g. nothing completed, or only one person active).`,
+          ]
+        : []),
     ].join("\n"),
     prompt: `Entries from the last 7 days:\n${context}`,
     output: Output.object({ schema: RecapSchema }),
@@ -237,6 +245,23 @@ export async function dailyNote(todayEntries: RetrievedEntry[]): Promise<DailyNo
     ].join("\n"),
     prompt: `Today's entries:\n${context}`,
     output: Output.object({ schema: DailyNoteSchema }),
+  });
+  return output;
+}
+
+// For POST /undo — a short spoken acknowledgement of what was just removed.
+// No dictated input to detect language from, so it's judged from the removed
+// entry's own text instead.
+export async function undoConfirmation(rawText: string, summary: string): Promise<Undo> {
+  const { output } = await generateText({
+    model: anthropic("claude-haiku-4-5"),
+    system: [
+      "You write ONE short spoken sentence confirming that a just-logged entry was removed, e.g. \"Okay, undid that.\"",
+      "Judge which language to reply in from the removed entry's own text below, not from any other context.",
+      "No markdown, no lists — a single short natural spoken-style sentence.",
+    ].join("\n"),
+    prompt: `Removed entry — raw: "${rawText}", summary: "${summary}"`,
+    output: Output.object({ schema: UndoSchema }),
   });
   return output;
 }

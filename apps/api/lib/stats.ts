@@ -11,7 +11,7 @@ export interface LogStats {
   currentStreak: number;
 }
 
-function localDateString(date: Date): string {
+export function localDateString(date: Date): string {
   // en-CA formats as YYYY-MM-DD, which is what we want for both display and
   // for treating these as plain sortable/comparable calendar-date strings.
   return new Intl.DateTimeFormat("en-CA", { timeZone: TIMEZONE }).format(date);
@@ -21,14 +21,14 @@ function localDateString(date: Date): string {
 // the YYYY-MM-DD string plus local/UTC time math, which would risk drifting
 // a day depending on the process's own timezone (Vercel Functions run in
 // UTC) rather than hers.
-function addDays(dateStr: string, delta: number): string {
+export function addDays(dateStr: string, delta: number): string {
   const [year, month, day] = dateStr.split("-").map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));
   date.setUTCDate(date.getUTCDate() + delta);
   return date.toISOString().slice(0, 10);
 }
 
-function streakEndingAt(days: Set<string>, endDate: string): number {
+export function streakEndingAt(days: Set<string>, endDate: string): number {
   let streak = 0;
   let cursor = endDate;
   while (days.has(cursor)) {

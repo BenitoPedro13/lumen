@@ -1,8 +1,9 @@
 import { randomBytes } from "crypto";
 
-import { and, eq, isNull, signupInvites, spaceMembers, spaces, users } from "@lumen/db";
+import { and, eq, inArray, isNull, signupInvites, spaceMembers, spaces, users } from "@lumen/db";
 
 import { db } from "@/lib/db";
+import { addDays, localDateString, streakEndingAt } from "@/lib/stats";
 
 export interface UserSpace {
   id: number;
@@ -230,4 +231,166 @@ export async function taskLeaderboard(spaceId: number): Promise<TaskLeaderboardE
       points: entry.points,
     }))
     .sort((a, b) => b.points - a.points);
+}
+
+// Weekly-scoped variant of taskLeaderboard, for the recap's "weekly MVP" callout —
+// same completed-points aggregation, just filtered to completions since `since`.
+export async function weeklyTaskLeaderboard(spaceId: number, since: Date): Promise<TaskLeaderboardEntry[]> {
+  const { entries: entriesTable } = await import("@lumen/db");
+
+  const taskRows = await db
+    .select({ createdBy: entriesTable.createdBy, data: entriesTable.data })
+    .from(entriesTable)
+    .where(and(eq(entriesTable.spaceId, spaceId), eq(entriesTable.kind, "task")));
+
+  const leaderboard: Record<number, { userId: number; points: number }> = {};
+
+  for (const task of taskRows) {
+    const data = task.data as Record<string, any>;
+    if (!data.done || !data.completedBy || !data.completedAt) continue;
+    if (new Date(data.completedAt) < since) continue;
+
+    const uid = Number(data.completedBy);
+    if (!leaderboard[uid]) leaderboard[uid] = { userId: uid, points: 0 };
+    leaderboard[uid].points += data.points ?? 0;
+  }
+
+  const userIds = Object.keys(leaderboard).map(Number);
+  if (userIds.length === 0) return [];
+
+  const userRows = await db.select().from(users).where(inArray(users.id, userIds));
+  const userMap = new Map(userRows.map((u) => [u.id, u.name]));
+
+  return Object.values(leaderboard)
+    .map((entry) => ({
+      userId: entry.userId,
+      userName: userMap.get(entry.userId) || "Unknown",
+      points: entry.points,
+    }))
+    .sort((a, b) => b.points - a.points);
+}
+
+// Duolingo-style shared streak: a calendar day only counts if EVERY member of
+// the space created at least one entry (task or log) in it that day. One
+// missed member breaks the day for everyone, same as one missed lesson breaks
+// a Duolingo shared streak. Only meaningful for spaces with 2+ members.
+export async function sharedSpaceStreak(spaceId: number, memberIds: number[]): Promise<number> {
+  if (memberIds.length < 2) return 0;
+
+  const { entries: entriesTable } = await import("@lumen/db");
+
+  const rows = await db
+    .select({ createdBy: entriesTable.createdBy, createdAt: entriesTable.createdAt })
+    .from(entriesTable)
+    .where(and(eq(entriesTable.spaceId, spaceId), inArray(entriesTable.createdBy, memberIds)));
+
+  const membersByDay = new Map<string, Set<number>>();
+  for (const row of rows) {
+    if (row.createdBy === null) continue;
+    const day = localDateString(row.createdAt);
+    if (!membersByDay.has(day)) membersByDay.set(day, new Set());
+    membersByDay.get(day)!.add(Number(row.createdBy));
+  }
+
+  const fullDays = new Set(
+    [...membersByDay.entries()]
+      .filter(([, uids]) => memberIds.every((id) => uids.has(id)))
+      .map(([day]) => day),
+  );
+
+  const today = localDateString(new Date());
+  const endDate = fullDays.has(today) ? today : addDays(today, -1);
+  return streakEndingAt(fullDays, endDate);
+}
+
+export interface SpaceBadge {
+  id: string;
+  label: string;
+}
+
+const SHARED_STREAK_BADGES = [3, 7, 14, 30, 60, 100, 365];
+const COMBINED_POINTS_BADGES = [50, 100, 250, 500, 1000, 2500];
+
+// Purely computed from current totals — no separate table, same "derive it,
+// don't store it" approach as lib/stats.ts's milestoneHints.
+export function spaceBadges(sharedStreak: number, combinedPoints: number, tasksCompleted: number): SpaceBadge[] {
+  const badges: SpaceBadge[] = [];
+
+  if (tasksCompleted >= 1) badges.push({ id: "first_task", label: "🎯 First task completed" });
+
+  for (const n of SHARED_STREAK_BADGES) {
+    if (sharedStreak >= n) badges.push({ id: `streak_${n}`, label: `🔥 ${n}-day streak` });
+  }
+  for (const n of COMBINED_POINTS_BADGES) {
+    if (combinedPoints >= n) badges.push({ id: `points_${n}`, label: `⭐ ${n} points together` });
+  }
+
+  return badges;
+}
+
+export interface TaskSpaceStats {
+  leaderboard: TaskLeaderboardEntry[];
+  combinedPoints: number;
+  tasksCompleted: number;
+  sharedStreak: number;
+  badges: SpaceBadge[];
+}
+
+// Bundles everything the space detail page needs for a task space's
+// gamification panel into one call.
+export async function taskSpaceStats(spaceId: number, memberIds: number[]): Promise<TaskSpaceStats> {
+  const [leaderboard, sharedStreak] = await Promise.all([
+    taskLeaderboard(spaceId),
+    sharedSpaceStreak(spaceId, memberIds),
+  ]);
+
+  const combinedPoints = leaderboard.reduce((sum, entry) => sum + entry.points, 0);
+  const tasksCompleted = leaderboard.length > 0 || combinedPoints > 0 ? await countCompletedTasks(spaceId) : 0;
+
+  return {
+    leaderboard,
+    combinedPoints,
+    tasksCompleted,
+    sharedStreak,
+    badges: spaceBadges(sharedStreak, combinedPoints, tasksCompleted),
+  };
+}
+
+async function countCompletedTasks(spaceId: number): Promise<number> {
+  const { entries: entriesTable, sql } = await import("@lumen/db");
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(entriesTable)
+    .where(and(eq(entriesTable.spaceId, spaceId), eq(entriesTable.kind, "task"), sql`${entriesTable.data}->>'done' = 'true'`));
+  return row?.count ?? 0;
+}
+
+// Toggles a reaction from `userId` on an entry — stored inline in the entry's
+// jsonb `data` bag (see docs/architecture/overview.md §5) rather than a new
+// table, same "don't migrate for this" approach as everything else in `data`.
+export async function toggleReaction(
+  entryId: number,
+  userId: number,
+  emoji: string,
+): Promise<{ emoji: string; userId: number }[] | null> {
+  const { entries: entriesTable } = await import("@lumen/db");
+
+  const [entry] = await db.select().from(entriesTable).where(eq(entriesTable.id, entryId));
+  if (!entry) return null;
+
+  const data = (entry.data as Record<string, any>) || {};
+  const reactions: { emoji: string; userId: number }[] = Array.isArray(data.reactions) ? data.reactions : [];
+
+  const existingIndex = reactions.findIndex((r) => r.userId === userId && r.emoji === emoji);
+  const nextReactions =
+    existingIndex >= 0
+      ? reactions.filter((_, i) => i !== existingIndex)
+      : [...reactions, { emoji, userId }];
+
+  await db
+    .update(entriesTable)
+    .set({ data: { ...data, reactions: nextReactions } })
+    .where(eq(entriesTable.id, entryId));
+
+  return nextReactions;
 }

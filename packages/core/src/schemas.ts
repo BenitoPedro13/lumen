@@ -104,3 +104,13 @@ export const TaskActionSchema = z.object({
 });
 
 export type TaskAction = z.infer<typeof TaskActionSchema>;
+
+// Output of the undo-confirmation LLM call for POST /undo — a short spoken
+// acknowledgement of what was just removed, in whatever language the removed
+// entry itself was in (there's no per-request input text to detect language
+// from, since "undo" carries no dictation of its own).
+export const UndoSchema = z.object({
+  confirmation: z.string(),
+});
+
+export type Undo = z.infer<typeof UndoSchema>;

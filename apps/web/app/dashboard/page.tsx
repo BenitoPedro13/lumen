@@ -85,6 +85,11 @@ export default function DashboardHome() {
               </a>
             </li>
             <li style={{ marginBottom: "0.5rem" }}>
+              <a href="/dashboard/recaps" style={{ color: "#0066cc", textDecoration: "underline" }}>
+                📬 Recap history
+              </a>
+            </li>
+            <li style={{ marginBottom: "0.5rem" }}>
               <a href="/dashboard/settings" style={{ color: "#0066cc", textDecoration: "underline" }}>
                 ⚙️ Account settings
               </a>
