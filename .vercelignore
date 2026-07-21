@@ -1,0 +1,11 @@
+.git
+.gitignore
+docs
+node_modules
+pnpm-store
+.turbo
+.env
+.env.*.local
+.DS_Store
+*.md
+!README.md

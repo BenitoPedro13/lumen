@@ -1,0 +1,7 @@
+{
+  "buildCommand": "echo 'Skipping build - using pre-built .next'",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "env": {
+    "LUMEN_API_URL": "https://lumen-iota-one.vercel.app"
+  }
+}
