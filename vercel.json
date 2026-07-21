@@ -1,4 +1,4 @@
 {
-  "buildCommand": "turbo build --filter=@lumen/api --filter=@lumen/web",
+  "buildCommand": "turbo build",
   "installCommand": "pnpm install"
 }
