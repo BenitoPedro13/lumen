@@ -1,26 +1,39 @@
 import { headers } from "next/headers";
 import { getSessionToken } from "@/lib/session";
 import { CopyButton } from "./CopyButton";
+import { QRCode } from "./QRCode";
 
 export default async function SetupPage() {
   const token = await getSessionToken() || "";
   const headersList = await headers();
   const host = headersList.get("host") || "localhost:3001";
   const protocol = host.startsWith("localhost") ? "http" : "https";
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${protocol}://${host}/dashboard/setup`)}`;
+  const setupUrl = `${protocol}://${host}/dashboard/setup`;
 
   const logShortcutUrl = process.env.NEXT_PUBLIC_LOG_SHORTCUT_URL;
   const askShortcutUrl = process.env.NEXT_PUBLIC_ASK_SHORTCUT_URL;
+  const apiUrl = process.env.LUMEN_API_URL || `${protocol}://${host}`;
 
   return (
     <div>
       <h1>📱 Set Up Your Device</h1>
+      <p className="text-small" style={{ marginBottom: "1.5rem" }}>
+        One-time setup for the Siri Shortcuts that let you use Lumen hands-free.{" "}
+        <a href="/dashboard/help" style={{ color: "#0066cc", textDecoration: "underline" }}>
+          How does this fit together?
+        </a>
+      </p>
 
       <div className="grid">
         <div className="card">
           <h3>Your Bearer Token</h3>
           <p className="text-small" style={{ marginBottom: "1rem" }}>
-            Use this token to authenticate with Lumen. Keep it secret!
+            This is like a personal password for the Shortcuts below — it's tied to your account only. Keep it
+            secret, and never share it with anyone else; if you want to give someone else access, send them an{" "}
+            <a href="/dashboard/invites" style={{ color: "#0066cc", textDecoration: "underline" }}>
+              invite
+            </a>{" "}
+            so they get their own token instead.
           </p>
           <div style={{ background: "#f5f5f5", padding: "1rem", borderRadius: "0.375rem", marginBottom: "1rem" }}>
             <code style={{ wordBreak: "break-all", fontSize: "0.75rem" }}>{token}</code>
@@ -33,7 +46,7 @@ export default async function SetupPage() {
           <p className="text-small" style={{ marginBottom: "1rem" }}>
             Scan to open this setup page on another device
           </p>
-          <img src={qrUrl} alt="Setup page QR code" style={{ maxWidth: "200px" }} />
+          <QRCode value={setupUrl} />
         </div>
       </div>
 
@@ -81,7 +94,7 @@ export default async function SetupPage() {
           <li>Add a Siri phrase to each</li>
         </ol>
         <p className="text-small" style={{ marginTop: "1rem" }}>
-          API URL: <code>https://your-lumen-url/api</code>
+          API URL: <code>{apiUrl}/api</code>
         </p>
       </div>
     </div>

@@ -35,7 +35,10 @@ export default function InvitesPage() {
 
       <div className="card" style={{ maxWidth: "500px", marginBottom: "2rem" }}>
         <p className="text-small" style={{ marginBottom: "1rem" }}>
-          Generate an invite link to share with someone you want to add to Lumen. The link expires in 7 days.
+          Generate an invite link for someone who <strong>doesn't have a Lumen account yet</strong> — it creates
+          them a new account and their own private space. The link expires in 7 days. If they already have an
+          account and you just want to add them to one of your spaces, use that space's "Share This Space" link
+          instead.
         </p>
         <button onClick={handleGenerateInvite} disabled={loading}>
           {loading ? "Generating..." : "Generate Invite Link"}

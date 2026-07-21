@@ -86,7 +86,12 @@ export default function SpaceDetailPage() {
           <div className="card">
             <h3>Share This Space</h3>
             <p className="text-small" style={{ marginBottom: "1rem" }}>
-              Share the invite code with others to let them join this space
+              Share this link with someone who <strong>already has a Lumen account</strong> to add them to this
+              space. For someone brand new, use{" "}
+              <a href="/dashboard/invites" style={{ color: "#0066cc", textDecoration: "underline" }}>
+                Invite
+              </a>{" "}
+              instead — that creates them an account first.
             </p>
             <div style={{ background: "#f5f5f5", padding: "1rem", borderRadius: "0.375rem", marginBottom: "1rem" }}>
               <code style={{ wordBreak: "break-all" }}>{joinUrl}</code>
@@ -100,6 +105,9 @@ export default function SpaceDetailPage() {
             <button onClick={handleRotateCode} style={{ background: "#f44336", fontSize: "0.875rem" }}>
               Rotate Code
             </button>
+            <span className="text-small" style={{ display: "block", marginTop: "0.5rem" }}>
+              Rotating invalidates the link above — anyone who hasn't joined yet will need the new one.
+            </span>
           </div>
         )}
 

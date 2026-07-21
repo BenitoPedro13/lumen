@@ -52,6 +52,13 @@ export default function SpacesPage() {
   return (
     <div>
       <h1>Spaces</h1>
+      <p className="text-small" style={{ marginBottom: "1.5rem" }}>
+        A space is where entries live. You already have a private one by default — create more here if you want a
+        separate journal, or a shared task list with someone else.{" "}
+        <a href="/dashboard/help" style={{ color: "#0066cc", textDecoration: "underline" }}>
+          Learn more
+        </a>
+      </p>
 
       <div className="grid">
         <div className="card">
@@ -84,6 +91,10 @@ export default function SpacesPage() {
                 <option value="journal">Journal (memory log)</option>
                 <option value="tasks">Tasks (todo + points)</option>
               </select>
+              <span className="text-small" style={{ display: "block", marginTop: "0.25rem" }}>
+                Journal: a running log you can ask questions about later. Tasks: a shared to-do list with points
+                and a leaderboard.
+              </span>
             </div>
 
             <button type="submit" disabled={creating || !name}>

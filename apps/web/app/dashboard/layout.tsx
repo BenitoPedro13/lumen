@@ -22,6 +22,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <a href="/dashboard/setup">Setup</a>
             <a href="/dashboard/invites">Invite</a>
             <a href="/dashboard/settings">Settings</a>
+            <a href="/dashboard/help">Help</a>
             <button
               onClick={handleLogout}
               style={{

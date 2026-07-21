@@ -42,6 +42,12 @@ export default function DashboardHome() {
   return (
     <div>
       <h1>Welcome, {user?.name}!</h1>
+      <p className="text-small" style={{ marginTop: "0.5rem" }}>
+        New here?{" "}
+        <a href="/dashboard/help" style={{ color: "#0066cc", textDecoration: "underline" }}>
+          See how everything works →
+        </a>
+      </p>
 
       <div className="grid" style={{ marginTop: "2rem" }}>
         <div className="card">
@@ -81,6 +87,11 @@ export default function DashboardHome() {
             <li style={{ marginBottom: "0.5rem" }}>
               <a href="/dashboard/settings" style={{ color: "#0066cc", textDecoration: "underline" }}>
                 ⚙️ Account settings
+              </a>
+            </li>
+            <li style={{ marginBottom: "0.5rem" }}>
+              <a href="/dashboard/help" style={{ color: "#0066cc", textDecoration: "underline" }}>
+                ❓ How Lumen works
               </a>
             </li>
           </ul>

@@ -75,7 +75,17 @@ export default function SettingsPage() {
               disabled={saving}
             />
             <span className="text-small" style={{ display: "block", marginTop: "0.25rem" }}>
-              Leave empty to disable push notifications
+              Used to deliver your weekly recap and daily notes as a push notification. Pick any topic name and
+              subscribe to it in the free{" "}
+              <a
+                href="https://ntfy.sh"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "#0066cc", textDecoration: "underline" }}
+              >
+                ntfy app
+              </a>
+              . Leave empty to disable.
             </span>
           </div>
 
