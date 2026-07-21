@@ -1,4 +1,4 @@
-import { entries, sql } from "@lumen/db";
+import { entries, eq, sql } from "@lumen/db";
 
 import { db } from "@/lib/db";
 
@@ -41,32 +41,36 @@ function streakEndingAt(days: Set<string>, endDate: string): number {
 // created_at (when she actually spoke to Siri), not occurred_at (when the
 // logged thing happened) — a streak is meant to track the habit of using
 // Lumen, not a calendar of events.
-async function loggedLocalDays(): Promise<Set<string>> {
+async function loggedLocalDays(userId: number): Promise<Set<string>> {
   const rows = await db
     .select({
       day: sql<string>`distinct (${entries.createdAt} at time zone ${TIMEZONE})::date`,
     })
-    .from(entries);
+    .from(entries)
+    .where(eq(entries.createdBy, userId));
   return new Set(rows.map((row) => row.day));
 }
 
-async function totalEntryCount(): Promise<number> {
-  const [row] = await db.select({ count: sql<number>`count(*)::int` }).from(entries);
+async function totalEntryCount(userId: number): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(entries)
+    .where(eq(entries.createdBy, userId));
   return row?.count ?? 0;
 }
 
 // Stats as they'll be immediately after the entry currently being logged is
 // inserted — called before the insert, so it predicts rather than reads.
-export async function statsForNewEntry(): Promise<LogStats> {
-  const [days, count] = await Promise.all([loggedLocalDays(), totalEntryCount()]);
+export async function statsForNewEntry(userId: number): Promise<LogStats> {
+  const [days, count] = await Promise.all([loggedLocalDays(userId), totalEntryCount(userId)]);
   const today = localDateString(new Date());
   days.add(today);
   return { totalCount: count + 1, currentStreak: streakEndingAt(days, today) };
 }
 
 // Stats as they stand right now, for the weekly recap — no predicted insert.
-export async function currentStats(): Promise<LogStats> {
-  const [days, count] = await Promise.all([loggedLocalDays(), totalEntryCount()]);
+export async function currentStats(userId: number): Promise<LogStats> {
+  const [days, count] = await Promise.all([loggedLocalDays(userId), totalEntryCount(userId)]);
   const today = localDateString(new Date());
   // Streak counts through today only if she's already logged something
   // today; otherwise it reads through yesterday, which is correct — the

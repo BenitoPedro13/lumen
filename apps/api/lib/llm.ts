@@ -1,20 +1,26 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { generateText, Output } from "ai";
+import { z } from "zod";
 
 import {
   AnswerSchema,
   DailyNoteSchema,
   ExtractionSchema,
+  makeSpaceResolutionSchema,
   NudgeSchema,
   QueryScopeSchema,
   RecapSchema,
+  TaskActionSchema,
   type Answer,
   type DailyNote,
   type Extraction,
   type Nudge,
   type QueryScope,
   type Recap,
+  type TaskAction,
 } from "@lumen/core";
+
+import type { UserSpace } from "@/lib/spaces";
 
 import type { OnThisDayCallback } from "@/lib/on-this-day";
 
@@ -32,6 +38,38 @@ function nowContext(): string {
 export interface RecentEntry {
   rawText: string;
   summary: string;
+}
+
+export async function resolveSpace(text: string, userSpaces: UserSpace[]): Promise<UserSpace> {
+  // Optimization: if user has only one space, skip LLM and return it directly
+  if (userSpaces.length === 1) {
+    return userSpaces[0];
+  }
+
+  // Build enum of space names + "default" fallback
+  const spaceNames = [...userSpaces.map((s) => s.name), "default"];
+  const schema = makeSpaceResolutionSchema(spaceNames);
+
+  const { output } = await generateText({
+    model: anthropic("claude-haiku-4-5"),
+    system: [
+      "You determine which space/list a person is referring to in a spoken sentence.",
+      "The user has access to these spaces: " + userSpaces.map((s) => `"${s.name}" (${s.kind})`).join(", ") + ".",
+      "Pick the space by name from the sentence, or say 'default' if no specific space is mentioned or if the sentence is ambiguous.",
+      "You must pick from the exact list provided — never invent a space name.",
+    ].join("\n"),
+    prompt: text,
+    output: Output.object({ schema }),
+  });
+
+  const selectedName = output.space;
+
+  if (selectedName === "default") {
+    const defaultSpace = userSpaces.find((s) => s.isDefault);
+    return defaultSpace || userSpaces[0]; // Fallback to first if default not found (shouldn't happen)
+  }
+
+  return userSpaces.find((s) => s.name === selectedName) || userSpaces[0];
 }
 
 export async function extract(
@@ -67,6 +105,36 @@ export async function extract(
   return output;
 }
 
+export interface TaskToMatch {
+  id: number;
+  title: string;
+}
+
+export async function extractTask(text: string, openTasks: TaskToMatch[]): Promise<TaskAction> {
+  const taskContext =
+    openTasks.length > 0
+      ? `Open tasks to potentially complete: ${openTasks.map((t) => `id=${t.id} "${t.title}"`).join("; ")}`
+      : "(no open tasks currently)";
+
+  const { output } = await generateText({
+    model: anthropic("claude-haiku-4-5"),
+    system: [
+      "You parse task commands from a person's spoken sentence.",
+      nowContext(),
+      "Resolve relative times ('tomorrow', 'next week', 'friday') against the current time and timezone above.",
+      LANGUAGE_RULE,
+      "Commands are either 'add' (new task) or 'complete' (mark done).",
+      "For 'add': extract title, points (default 10 if not mentioned), and optional due date.",
+      "For 'complete': try to match an open task by title/description and extract its id. If no clear match, leave matchedEntryId null.",
+      "`confirmation` is brief and natural (e.g., 'Added laundry, due tomorrow, 15 points' or 'Marked groceries done').",
+      taskContext,
+    ].join("\n"),
+    prompt: text,
+    output: Output.object({ schema: TaskActionSchema }),
+  });
+  return output;
+}
+
 export async function scopeQuery(question: string): Promise<QueryScope> {
   const { output } = await generateText({
     model: anthropic("claude-haiku-4-5"),
@@ -87,7 +155,7 @@ export interface RetrievedEntry {
   summary: string;
 }
 
-export async function answer(question: string, entries: RetrievedEntry[]): Promise<Answer> {
+export async function answer(question: string, entries: RetrievedEntry[], extraContext?: string): Promise<Answer> {
   const context = entries.length
     ? entries
         .map((e) => `- [${e.occurredAt.toISOString()}] (${e.category}) ${e.summary}`)
@@ -102,6 +170,7 @@ export async function answer(question: string, entries: RetrievedEntry[]): Promi
       LANGUAGE_RULE,
       "`answer` is spoken directly by Siri — one short natural sentence, no markdown, no lists.",
       "If the retrieved entries don't contain enough information to answer, say so plainly rather than guessing.",
+      ...(extraContext ? [`Additional context: ${extraContext}`] : []),
     ].join("\n"),
     prompt: `Question: ${question}\n\nRetrieved entries:\n${context}`,
     output: Output.object({ schema: AnswerSchema }),

@@ -1,9 +1,8 @@
 // ntfy.sh push delivery — see docs/architecture/overview.md §6.3/§9. Shared by
 // the weekly recap, daily note, and check-in nudge cron jobs.
-export async function pushNotification(text: string, title: string): Promise<void> {
-  const topic = process.env.NTFY_TOPIC;
+export async function pushNotification(text: string, title: string, topic: string): Promise<void> {
   if (!topic) {
-    console.error("NTFY_TOPIC not set — skipping push");
+    console.error("ntfy topic not provided — skipping push");
     return;
   }
 

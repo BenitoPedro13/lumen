@@ -1,9 +1,10 @@
-import { desc, entries, sql } from "@lumen/db";
+import { and, desc, entries, eq, inArray, sql } from "@lumen/db";
 
 import { isAuthorizedCron } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { checkInNudge, dailyNote } from "@/lib/llm";
 import { pushNotification } from "@/lib/ntfy";
+import { spaces, spaceMembers, users } from "@lumen/db";
 
 // A one-shot check-in window, not "> 48h" unbounded — with a daily cron this
 // fires exactly once per silence stretch instead of nagging every day she
@@ -22,47 +23,84 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Compare local calendar dates in Postgres, same pattern as lib/stats.ts —
-    // correctly DST-aware, unlike computing a UTC boundary by hand in JS.
-    const todayRows = await db
-      .select()
-      .from(entries)
-      .where(
-        sql`(${entries.occurredAt} at time zone 'Europe/Amsterdam')::date = (now() at time zone 'Europe/Amsterdam')::date`,
-      )
-      .orderBy(desc(entries.occurredAt));
+    // Get all users with ntfy topics configured
+    const allUsers = await db.select().from(users).where(sql`${users.ntfyTopic} IS NOT NULL`);
 
-    if (todayRows.length > 0) {
-      const result = await dailyNote(
-        todayRows.map((row) => ({
-          occurredAt: row.occurredAt,
-          category: row.category,
-          summary: row.summary,
-        })),
-      );
-      await pushNotification(result.note, "Daily note");
-      return Response.json({ ok: true, sent: "daily-note" });
+    // Process each user's daily note separately
+    for (const user of allUsers) {
+      try {
+        // Get user's journal spaces
+        const userJournalSpaces = await db
+          .select({ id: spaces.id })
+          .from(spaceMembers)
+          .innerJoin(spaces, eq(spaceMembers.spaceId, spaces.id))
+          .where(and(eq(spaceMembers.userId, user.id), eq(spaces.kind, "journal")));
+
+        if (userJournalSpaces.length === 0) {
+          continue;
+        }
+
+        const spaceIds = userJournalSpaces.map((s) => s.id);
+
+        // Compare local calendar dates in Postgres, same pattern as lib/stats.ts
+        const todayRows = await db
+          .select()
+          .from(entries)
+          .where(
+            and(
+              inArray(entries.spaceId, spaceIds),
+              sql`(${entries.occurredAt} at time zone 'Europe/Amsterdam')::date = (now() at time zone 'Europe/Amsterdam')::date`,
+            ),
+          )
+          .orderBy(desc(entries.occurredAt));
+
+        if (todayRows.length > 0) {
+          const result = await dailyNote(
+            todayRows.map((row) => ({
+              occurredAt: row.occurredAt,
+              category: row.category,
+              summary: row.summary,
+            })),
+          );
+          await pushNotification(result.note, "Daily note", user.ntfyTopic!);
+          continue;
+        }
+
+        // Check for silence
+        const [mostRecent] = await db
+          .select()
+          .from(entries)
+          .where(inArray(entries.spaceId, spaceIds))
+          .orderBy(desc(entries.createdAt))
+          .limit(1);
+
+        const hoursSinceLastLog = mostRecent
+          ? (Date.now() - mostRecent.createdAt.getTime()) / (60 * 60 * 1000)
+          : Infinity;
+
+        if (hoursSinceLastLog >= SILENCE_MIN_HOURS && hoursSinceLastLog < SILENCE_MAX_HOURS) {
+          const recentRows = await db
+            .select()
+            .from(entries)
+            .where(inArray(entries.spaceId, spaceIds))
+            .orderBy(desc(entries.createdAt))
+            .limit(10);
+
+          const result = await checkInNudge(
+            recentRows.map((row) => ({
+              occurredAt: row.occurredAt,
+              category: row.category,
+              summary: row.summary,
+            })),
+          );
+          await pushNotification(result.text, "Checking in", user.ntfyTopic!);
+        }
+      } catch (userErr) {
+        console.error(`Daily note failed for user ${user.id}:`, userErr);
+      }
     }
 
-    const [mostRecent] = await db.select().from(entries).orderBy(desc(entries.createdAt)).limit(1);
-    const hoursSinceLastLog = mostRecent
-      ? (Date.now() - mostRecent.createdAt.getTime()) / (60 * 60 * 1000)
-      : Infinity;
-
-    if (hoursSinceLastLog >= SILENCE_MIN_HOURS && hoursSinceLastLog < SILENCE_MAX_HOURS) {
-      const recentRows = await db.select().from(entries).orderBy(desc(entries.createdAt)).limit(10);
-      const result = await checkInNudge(
-        recentRows.map((row) => ({
-          occurredAt: row.occurredAt,
-          category: row.category,
-          summary: row.summary,
-        })),
-      );
-      await pushNotification(result.text, "Checking in");
-      return Response.json({ ok: true, sent: "check-in-nudge" });
-    }
-
-    return Response.json({ ok: true, sent: "none" });
+    return Response.json({ ok: true });
   } catch (err) {
     console.error("GET /api/recap/daily failed", err);
     return Response.json({ ok: true });

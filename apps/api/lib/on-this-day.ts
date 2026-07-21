@@ -1,4 +1,4 @@
-import { and, entries, gte, lte } from "@lumen/db";
+import { and, entries, gte, inArray, lte } from "@lumen/db";
 
 import { db } from "@/lib/db";
 import type { RetrievedEntry } from "@/lib/llm";
@@ -22,7 +22,10 @@ export interface OnThisDayCallback {
 // Nostalgic callbacks for the weekly recap — "a year ago you were...". Purely
 // additive: returns nothing until there's actually a month/year of history to
 // look back on, no new schema needed (docs/architecture/roadmap.md §1).
-export async function onThisDayCallbacks(reference: Date = new Date()): Promise<OnThisDayCallback[]> {
+export async function onThisDayCallbacks(
+  spaceIds: number[],
+  reference: Date = new Date(),
+): Promise<OnThisDayCallback[]> {
   const callbacks = await Promise.all(
     ANCHORS.map(async (anchor) => {
       const center = reference.getTime() - anchor.daysAgo * DAY_MS;
@@ -31,6 +34,7 @@ export async function onThisDayCallbacks(reference: Date = new Date()): Promise<
         .from(entries)
         .where(
           and(
+            inArray(entries.spaceId, spaceIds),
             gte(entries.occurredAt, new Date(center - WINDOW_DAYS * DAY_MS)),
             lte(entries.occurredAt, new Date(center + WINDOW_DAYS * DAY_MS)),
           ),

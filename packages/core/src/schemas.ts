@@ -13,6 +13,13 @@ export const CATEGORIES = [
   "other",
 ] as const;
 
+// Space resolution — schema factory for dynamic space name enum
+export function makeSpaceResolutionSchema(spaceNames: string[]) {
+  return z.object({
+    space: z.enum(spaceNames.length > 0 ? (spaceNames as [string, ...string[]]) : (["default"] as const)),
+  });
+}
+
 export type Category = (typeof CATEGORIES)[number];
 
 // Output of the extraction LLM call for POST /log.
@@ -84,3 +91,16 @@ export const NudgeSchema = z.object({
 });
 
 export type Nudge = z.infer<typeof NudgeSchema>;
+
+// Output of the task extraction LLM call for POST /log when space kind is "tasks".
+// Parses spoken task commands like "add make dinner 20 points due tomorrow" or "mark laundry done".
+export const TaskActionSchema = z.object({
+  action: z.enum(["add", "complete"]),
+  title: z.string(),
+  points: z.number().int().positive().default(10),
+  dueAt: z.string().datetime({ offset: true }).nullable(),
+  matchedEntryId: z.number().int().nullable(),
+  confirmation: z.string(),
+});
+
+export type TaskAction = z.infer<typeof TaskActionSchema>;
