@@ -1,6 +1,15 @@
 {
-  "buildCommand": "pnpm build",
-  "installCommand": "pnpm install",
-  "framework": "nextjs",
-  "regions": ["iad1"]
+  "buildCommand": "pnpm install && pnpm build",
+  "installCommand": "",
+  "env": {
+    "LUMEN_API_URL": "@lumen-api-url"
+  },
+  "envs": {
+    "LUMEN_API_URL": {
+      "type": "plaintext",
+      "description": "API server URL",
+      "value": "https://lumen-iota-one.vercel.app",
+      "target": ["preview", "production"]
+    }
+  }
 }
